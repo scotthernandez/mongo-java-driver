@@ -72,6 +72,55 @@ public abstract class DB {
      */
     protected abstract DBCollection doGetCollection( String name );
     
+    DBCollection renameCollection ( String name, String newName )
+    	throws MongoException  {
+    	
+    	String fullName = _name + "." + name;
+
+    	CommandResult ret = 
+            getSisterDB( "admin" )
+            .command( BasicDBObjectBuilder.start()
+                      .add( "renameCollection" , fullName )
+                      .add( "to" , _name + "." + newName )
+                      .get() );
+        ret.throwOnError();
+
+        removeFromCollectionCache( name , newName );
+
+        return getCollection( newName );
+    }
+    
+    void dropCollection( String name )
+    	throws MongoException  {
+    	
+    	CommandResult res = command( new BasicDBObjectBuilder().add( "drop" , name ).get() );
+        if ( res.ok() || res.getErrorMessage().equals( "ns not found" ) ) {
+        	removeFromCollectionCache( name );
+        	return;
+        }
+        throw new MongoException( "error dropping : " + res );
+
+    }
+    
+    public void removeFromCollectionCache( String...names )
+    	throws MongoException  {
+
+    	if (names == null || names.length == 0) return;
+    	
+    	for ( String name : names ) {
+        	String fullName = _name + "." + name;
+    		//remove collection from cache
+	    	DBCollection collToRemove = null;
+	    	for (DBCollection coll : _seenCollections)
+	    		if (coll.getFullName().equals( fullName )) {
+	    			collToRemove = coll;
+	    			break;
+	    		}
+	    	if (collToRemove != null)
+	    		_seenCollections.remove( collToRemove );
+    	}
+    }
+    
     /** Gets a collection with a given name.
      * If the collection does not exist, a new collection is created.
      * @param name the name of the collection to return
@@ -84,7 +133,8 @@ public abstract class DB {
 	}
         return c;
     }
-
+    
+    
     /** Creates a collection with a given name and options.
      * If the collection does not exist, a new collection is created.
      * Possible options:

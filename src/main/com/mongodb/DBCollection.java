@@ -33,7 +33,7 @@ import com.mongodb.util.*;
  * </pre></blockquote>
  * @dochub collections
  */
-@SuppressWarnings("unchecked")
+@SuppressWarnings({"unchecked", "rawtypes"})
 public abstract class DBCollection {
 
     final static boolean DEBUG = Boolean.getBoolean( "DEBUG.DB" );
@@ -584,12 +584,9 @@ public abstract class DBCollection {
     
     /** Drops (deletes) this collection
      */
-    public void drop()
+	public void drop()
         throws MongoException {
-        CommandResult res =_db.command( BasicDBObjectBuilder.start().add( "drop" , getName() ).get() );
-        if ( res.ok() || res.getErrorMessage().equals( "ns not found" ) )
-            return;
-        throw new MongoException( "error dropping : " + res );
+    	_db.dropCollection( _name );
     }
 
     public long count()
@@ -685,14 +682,7 @@ public abstract class DBCollection {
     public DBCollection rename( String newName ) 
         throws MongoException {
         
-        CommandResult ret = 
-            _db.getSisterDB( "admin" )
-            .command( BasicDBObjectBuilder.start()
-                      .add( "renameCollection" , _fullName )
-                      .add( "to" , _db._name + "." + newName )
-                      .get() );
-        ret.throwOnError();
-        return _db.getCollection( newName );
+    	return _db.renameCollection( _name , newName );
     }
 
     /**
@@ -987,7 +977,7 @@ public abstract class DBCollection {
     
     final DB _db;
 
-    final protected String _name;
+	final protected String _name;
     final protected String _fullName;
 
     protected List<DBObject> _hintFields;

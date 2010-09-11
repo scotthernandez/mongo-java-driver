@@ -304,6 +304,16 @@ public class JavaClientTest extends TestCase {
     }
 
     @Test
+    public void testDrop(){
+        DBCollection c = _db.getCollection( "drop1" );
+        c.drop();
+        c.insert( new BasicDBObject( "_id" , 1 ) );
+        assertEquals( 1 , c.find().count() );
+        c.drop();
+        assertEquals( 0 , c.find().count() );
+    }
+
+    @Test
     public void testStrictWriteSetInCollection(){
         DBCollection c = _db.getCollection( "write1" );
         c.drop();
