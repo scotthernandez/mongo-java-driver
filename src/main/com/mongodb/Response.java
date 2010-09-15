@@ -22,7 +22,7 @@ import java.io.*;
 import java.util.*;
 
 import org.bson.*;
-import org.bson.io.*;
+import org.bson.io.Bits;
 
 class Response {
     
@@ -90,8 +90,8 @@ class Response {
         if ( _num > 0 )
             return true;
 
-        if ( ( queryOptions & Bytes.QUERYOPTION_TAILABLE ) == 0 )
-            return false;
+//        if ( ( queryOptions & Bytes.QUERYOPTION_TAILABLE ) == Bytes.QUERYOPTION_TAILABLE )
+//            return false;
             
         // have a tailable cursor
         if ( ( _flags & Bytes.RESULTFLAG_AWAITCAPABLE ) > 0 )

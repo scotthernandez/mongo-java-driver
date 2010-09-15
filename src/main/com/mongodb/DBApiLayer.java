@@ -309,6 +309,10 @@ public class DBApiLayer extends DB {
                 return false;
 
             _advance();
+
+            if ( ( _options & Bytes.QUERYOPTION_TAILABLE ) == Bytes.QUERYOPTION_TAILABLE && !_cur.hasNext())
+            	return false;
+            
             return hasNext();
         }
 

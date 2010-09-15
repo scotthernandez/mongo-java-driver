@@ -19,7 +19,7 @@ package com.mongodb;
 import java.io.*;
 import java.util.*;
 
-import org.testng.annotations.Test;
+import org.testng.annotations.*;
 
 import com.mongodb.util.*;
 
@@ -64,6 +64,55 @@ public class DBCursorTest extends TestCase {
         assertEquals( 100 , c.find().snapshot().toArray().size() );
         assertEquals( 100 , c.find().snapshot().limit(50).count() );
         assertEquals( 50 , c.find().snapshot().limit(50).toArray().size() );
+    }
+
+    @Test//(enabled = false)
+    public void testTailable() {
+        DBCollection c = _db.getCollection("tail1");
+        c.drop();
+        _db.createCollection( "tail1", new BasicDBObject("capped", true).append( "size", 10000 ) );
+        for ( int i=0; i<10; i++ )
+            c.save( new BasicDBObject( "x" , i ) );
+
+
+		DBCursor cur =  c.find().sort( new BasicDBObject( "$natural" , 1 ) )
+								.addOption( Bytes.QUERYOPTION_TAILABLE );
+		
+		while ( cur.hasNext() ) {
+			cur.next();
+			//do nothing...
+		}
+        
+        assert( !cur.hasNext() );
+		c.save( new BasicDBObject( "x" , 12 ) );
+        assert( cur.hasNext() );
+        assertNotNull( cur.next() );
+        assert( !cur.hasNext() );
+		
+    }
+
+    @Test//(enabled = false)
+    public void testTailableAwait() {
+        DBCollection c = _db.getCollection("tail1");
+        c.drop();
+        _db.createCollection( "tail1", new BasicDBObject("capped", true).append( "size", 10000 ) );
+        for ( int i=0; i<10; i++ )
+            c.save( new BasicDBObject( "x" , i ) );
+
+
+		DBCursor cur =  c.find().sort( new BasicDBObject( "$natural" , 1 ) )
+								.addOption( Bytes.QUERYOPTION_TAILABLE | Bytes.QUERYOPTION_AWAITDATA );
+		
+		while ( cur.hasNext() ) {
+			cur.next();
+			//do nothing...
+		}
+		
+        assert( !cur.hasNext() );
+        c.save( new BasicDBObject( "x" , 12 ) );
+        assert( cur.hasNext() );
+        assertNotNull( cur.next() );
+        assert( !cur.hasNext() );
     }
 
     @Test
