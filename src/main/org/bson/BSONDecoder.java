@@ -2,37 +2,12 @@
 
 package org.bson;
 
-import static org.bson.BSON.ARRAY;
-import static org.bson.BSON.BINARY;
-import static org.bson.BSON.BOOLEAN;
-import static org.bson.BSON.B_BINARY;
-import static org.bson.BSON.B_GENERAL;
-import static org.bson.BSON.B_UUID;
-import static org.bson.BSON.CODE;
-import static org.bson.BSON.CODE_W_SCOPE;
-import static org.bson.BSON.DATE;
-import static org.bson.BSON.EOO;
-import static org.bson.BSON.MAXKEY;
-import static org.bson.BSON.MINKEY;
-import static org.bson.BSON.NULL;
-import static org.bson.BSON.NUMBER;
-import static org.bson.BSON.NUMBER_INT;
-import static org.bson.BSON.NUMBER_LONG;
-import static org.bson.BSON.OBJECT;
-import static org.bson.BSON.OID;
-import static org.bson.BSON.REF;
-import static org.bson.BSON.REGEX;
-import static org.bson.BSON.STRING;
-import static org.bson.BSON.SYMBOL;
-import static org.bson.BSON.TIMESTAMP;
-import static org.bson.BSON.UNDEFINED;
+import static org.bson.BSON.*;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.lang.ref.SoftReference;
+import java.io.*;
+import java.lang.ref.*;
 
-import org.bson.types.ObjectId;
+import org.bson.types.*;
 
 public class BSONDecoder {
     
@@ -294,7 +269,8 @@ public class BSONDecoder {
          * @param blockSize
          * @throws IOException
          */
-        void ensureContinuousBlock(int blockSize) throws IOException {
+        void ensureContinuousBlock(int blockSize) 
+        	throws IOException {
         	//
         	// Enough bytes already loaded?
         	if(_o + blockSize <= _l)
@@ -303,14 +279,12 @@ public class BSONDecoder {
         	final int remaining = _l - _o;
         	//
         	// Is buffer large enough for block?
-        	if(blockSize < _random.length)
-        	{        		        	
+        	if(blockSize < _random.length) {        		        	
             	//
             	// copy the rest in the buffer to the front
             	System.arraycopy(_random, _o, _random, 0, remaining);        		
         	}
-        	else
-        	{
+        	else {
         		//
         		// Allocate a larger buffer
         		final byte largerBuffer[] = new byte[blockSize + MAX_READAHEADSIZE];
@@ -426,13 +400,12 @@ public class BSONDecoder {
         }
 
         void fill( byte b[] , int len )
-        throws IOException {
+        	throws IOException {
 	        //
 	        // Take the remaining bytes from the buffer
 	        int outputOffset = _l - _o;	        
 	        
-	        if(outputOffset > 0)
-	        {
+	        if(outputOffset > 0) {
 	        	System.arraycopy(_random, _o, b, 0, outputOffset);
 	        	//
 	        	// Reduced needed bytes
@@ -462,8 +435,8 @@ public class BSONDecoder {
          * @return
          * @throws IOException
          */
-        char readMultiByte(int c1) throws IOException
-        {
+        char readMultiByte(int c1) 
+        	throws IOException {
             switch (c1 >> 4) {
                 case 12: 
                 case 13: {
@@ -560,8 +533,7 @@ public class BSONDecoder {
             	//
             	// If there are to much characters in the buffer, then append _charBuffer to StringBuilder
             	// and reset the _charBuffer. This ensures that the byteBuffer does not rise a char buffer overflow 
-            	if(_l - _o > _charBuffer.length - charBufferPosition)
-            	{
+            	if(_l - _o > _charBuffer.length - charBufferPosition) {
                    	stringBuilder.append(_charBuffer, 0, charBufferPosition);
                    	charBufferPosition = 0;            		
             	}            	
