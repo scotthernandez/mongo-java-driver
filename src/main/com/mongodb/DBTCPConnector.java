@@ -40,7 +40,7 @@ class DBTCPConnector implements DBConnector {
 
         if ( addr.isPaired() ){
             _allHosts = new ArrayList<ServerAddress>( addr.explode() );
-            _createLogger.info( "switch to paired mode : " + _allHosts + " -> " + _curAddress  );
+            _createLogger.info( "switching to replica set mode : " + _allHosts + " -> " + _curAddress  );
         }
         else {
             _set( addr );
@@ -165,7 +165,9 @@ class DBTCPConnector implements DBConnector {
             mp.error( re , true );
             throw re;
         }
-
+        finally {
+            m.doneWithMessage();
+        }
     }
     
     public Response call( DB db , DBCollection coll , OutMessage m )
@@ -198,7 +200,7 @@ class DBTCPConnector implements DBConnector {
             mp.error( re , true );
             throw re;
         }
-
+        
         ServerError err = res.getError();
         
         if ( err != null && err.isNotMasterError() ){
@@ -209,6 +211,7 @@ class DBTCPConnector implements DBConnector {
             return call( db , coll , m , retries -1 );
         }
         
+        m.doneWithMessage();
         return res;
     }
 
@@ -227,7 +230,7 @@ class DBTCPConnector implements DBConnector {
     boolean _error( Throwable t )
         throws MongoException {
         if ( _allHosts != null ){
-            _logger.log( Level.WARNING , "paired mode, switching master" , t );
+            _logger.log( Level.WARNING , "replica set mode, switching master" , t );
             _pickCurrent();
         }
         return true;
@@ -469,7 +472,7 @@ class DBTCPConnector implements DBConnector {
     public String debugString(){
         StringBuilder buf = new StringBuilder( "DBTCPConnector: " );
         if ( _allHosts != null )
-            buf.append( "paired : " ).append( _allHosts );
+            buf.append( "replica set : " ).append( _allHosts );
         else
             buf.append( _curAddress ).append( " " ).append( _curAddress._addr );
 

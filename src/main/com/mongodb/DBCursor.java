@@ -77,6 +77,8 @@ public class DBCursor implements Iterator<DBObject> , Iterable<DBObject> {
         c._numWanted = _numWanted;
         c._skip = _skip;
         c._options = _options;
+        if ( _specialFields != null )
+            c._specialFields = new BasicDBObject( _specialFields.toMap() );
         return c;
     }
 
@@ -96,6 +98,19 @@ public class DBCursor implements Iterator<DBObject> , Iterable<DBObject> {
             throw new IllegalStateException( "can't sort after executing query" );
 
         _orderBy = orderBy;
+        return this;
+    }
+
+    /**
+     * add a special operator like $maxScan or $returnKey
+     * e.g. addSpecial( "$returnKey" , 1 )
+     * e.g. addSpecial( "$maxScan" , 100 )
+     * @dochub specialOperators
+     */
+    public DBCursor addSpecial( String name , Object o ){
+        if ( _specialFields == null )
+            _specialFields = new BasicDBObject();
+        _specialFields.put( name , o );
         return this;
     }
 
@@ -232,10 +247,12 @@ public class DBCursor implements Iterator<DBObject> , Iterable<DBObject> {
 
             DBObject foo = _query;
             if ( hasSpecialQueryFields() ){
-                foo = new BasicDBObject();
+                foo = _specialFields == null ? new BasicDBObject() : _specialFields;
+                
                 _addToQueryObject( foo , "query" , _query , true );
                 _addToQueryObject( foo , "orderby" , _orderBy , false );
                 _addToQueryObject( foo , "$hint" , _hint );
+
                 if ( _explain )
                     foo.put( "$explain" , true );
                 if ( _snapshot )
@@ -284,6 +301,9 @@ public class DBCursor implements Iterator<DBObject> , Iterable<DBObject> {
     }
 
     boolean hasSpecialQueryFields(){
+        if ( _specialFields != null )
+            return true;
+
         if ( _orderBy != null && _orderBy.keySet().size() > 0 )
             return true;
         
@@ -441,7 +461,11 @@ public class DBCursor implements Iterator<DBObject> , Iterable<DBObject> {
             _next();
     }
 
-    /** Finds the number of elements in the array.
+    /** 
+     * pulls back all items into an array
+     * this is slow
+     * @see count()
+     * @see size()
      * @return the number of elements in the array
      */
     public int length()
@@ -474,6 +498,8 @@ public class DBCursor implements Iterator<DBObject> , Iterable<DBObject> {
     /**
      * for testing only!
      * iterates cursor and counts objects
+     * very slow
+     * @see count()
      * @return num objects
      */
     public int itcount(){
@@ -488,6 +514,7 @@ public class DBCursor implements Iterator<DBObject> , Iterable<DBObject> {
     /**
      * Counts the number of elements matching the query
      * this does not take limit/skip into consideration
+     * @see size()
      * @return the number of elements
      */
     public int count() 
@@ -503,6 +530,7 @@ public class DBCursor implements Iterator<DBObject> , Iterable<DBObject> {
     /**
      * Counts the number of elements matching the query that would be returned
      * this does take limit/skip into consideration
+     * @see count()
      * @return the number of elements
      */
     public int size() 
@@ -537,7 +565,9 @@ public class DBCursor implements Iterator<DBObject> , Iterable<DBObject> {
     private int _skip = 0;
     private boolean _snapshot = false;
     private int _options = 0;
-    
+
+    private DBObject _specialFields;
+
     // ----  result info ----
     private Iterator<DBObject> _it = null;
     private boolean _fake = false;

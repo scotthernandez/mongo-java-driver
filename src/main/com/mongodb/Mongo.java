@@ -22,6 +22,9 @@ import java.net.*;
 import java.util.*;
 import java.util.concurrent.*;
 
+import org.bson.util.*;
+import org.bson.io.*;
+
 /**
  * A database connection with internal pooling.
  * For most application, you should have 1 Mongo instance for the entire JVM.
@@ -187,11 +190,21 @@ public class Mongo {
         _connector._pickInitial();
     }
 
+    /**
+     * creates a Mongo connection to a replica set
+     * @pair replicaSetSeeds put as many servers as you can in the list. 
+     *                       the system will figure the rest out
+     */
     public Mongo( List<ServerAddress> replicaSetSeeds )
         throws MongoException {
         this( replicaSetSeeds , new MongoOptions() );
     }
-    
+
+    /**
+     * creates a Mongo connection to a replica set
+     * @pair replicaSetSeeds put as many servers as you can in the list. 
+     *                       the system will figure the rest out
+     */    
     public Mongo( List<ServerAddress> replicaSetSeeds , MongoOptions options )
         throws MongoException {
         
@@ -310,6 +323,16 @@ public class Mongo {
     final DBTCPConnector _connector;
     final ConcurrentMap<String,DB> _dbs = new ConcurrentHashMap<String,DB>();
     private WriteConcern _concern = WriteConcern.NORMAL;
+
+    org.bson.util.SimplePool<PoolOutputBuffer> _bufferPool = 
+        new org.bson.util.SimplePool<PoolOutputBuffer>( 1000 ){
+        
+        protected PoolOutputBuffer createNew(){
+            return new PoolOutputBuffer();
+        }
+        
+    };
+
 
     private static final ConcurrentMap<String,Mongo> _mongos = new ConcurrentHashMap<String,Mongo>();
 }

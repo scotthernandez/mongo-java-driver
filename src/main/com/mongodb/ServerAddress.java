@@ -93,7 +93,7 @@ public class ServerAddress {
      */
     List<ServerAddress> explode(){
         if ( _all == null || _all.length <= 1 )
-            throw new RuntimeException( "not paired.  num addresses : " + _all.length );
+            throw new RuntimeException( "not replica set mode.  num addresses : " + _all.length );
         
         List<ServerAddress> s = new ArrayList<ServerAddress>();
         for ( int i=0; i<_all.length; i++ ){
@@ -177,14 +177,14 @@ public class ServerAddress {
      * @return the db_ip environmental variable, or "127.0.0.1" as a default
      */
     public static String defaultHost(){
-        return Config.get().getTryEnvFirst( "db_ip" , "127.0.0.1" );
+        return "127.0.0.1";
     }
 
     /** Returns the default port that the database runs on.
      * @return the db_port environmental variable, or 27017 as a default
      */
     public static int defaultPort(){
-        return Integer.parseInt(Config.get().getTryEnvFirst("db_port", Integer.toString(DBPort.PORT)));
+        return DBPort.PORT;
     }
     
 }

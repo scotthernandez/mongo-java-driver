@@ -22,6 +22,7 @@ import java.net.*;
 import java.nio.*;
 import java.util.*;
 import java.util.concurrent.atomic.*;
+import java.util.logging.*;
 
 /**
  * A globally unique identifier for objects.
@@ -39,8 +40,8 @@ import java.util.concurrent.atomic.*;
  */
 public class ObjectId implements Comparable<ObjectId> , java.io.Serializable {
 
-    static final boolean D = false;
-    
+    static final Logger LOGGER = Logger.getLogger( "org.bson.ObjectId" );
+
     /** Gets a new object id.
      * @return the new id
      */
@@ -55,11 +56,11 @@ public class ObjectId implements Comparable<ObjectId> , java.io.Serializable {
         if ( s == null )
             return false;
         
-        int len = s.length();
-        if ( len < 18 || len > 24 )
+        final int len = s.length();
+        if ( len != 24 )
             return false;
 
-        for ( int i=0; i<s.length(); i++ ){
+        for ( int i=0; i<len; i++ ){
             char c = s.charAt( i );
             if ( c >= '0' && c <= '9' )
                 continue;
@@ -80,7 +81,7 @@ public class ObjectId implements Comparable<ObjectId> , java.io.Serializable {
      * @param o the object to convert 
      * @return an <code>ObjectId</code> if it can be massaged, null otherwise 
      */
-    protected static ObjectId massageToObjectId( Object o ){
+    public static ObjectId massageToObjectId( Object o ){
         if ( o == null )
             return null;
         
@@ -174,7 +175,10 @@ public class ObjectId implements Comparable<ObjectId> , java.io.Serializable {
     }
 
     public int hashCode(){
-        return _inc;
+        int x = _time;
+        x += ( _machine * 111 );
+        x += ( _inc * 17 );
+        return x;
     }
 
     public boolean equals( Object o ){
@@ -339,52 +343,17 @@ public class ObjectId implements Comparable<ObjectId> , java.io.Serializable {
                     sb.append( ni.toString() );
                 }
                 machinePiece = sb.toString().hashCode() << 16;
-                if ( D ) System.out.println( "machine piece post: " + Integer.toHexString( machinePiece ) );
+                LOGGER.fine( "machine piece post: " + Integer.toHexString( machinePiece ) );
             }
             
             final int processPiece = java.lang.management.ManagementFactory.getRuntimeMXBean().getName().hashCode() & 0xFFFF;
-            if ( D ) System.out.println( "process piece: " + Integer.toHexString( processPiece ) );
+            LOGGER.fine( "process piece: " + Integer.toHexString( processPiece ) );
 
             _genmachine = machinePiece | processPiece;
-            if ( D ) System.out.println( "machine : " + Integer.toHexString( _genmachine ) );
+            LOGGER.fine( "machine : " + Integer.toHexString( _genmachine ) );
         }
         catch ( java.io.IOException ioe ){
             throw new RuntimeException( ioe );
-        }
-
-    }
-
-    public static void main( String args[] ){
-        
-        if ( true ){
-            int z = _nextInc.getAndIncrement();
-            System.out.println( Integer.toHexString( z ) );
-            System.out.println( Integer.toHexString( _flip( z ) ) );
-            System.out.println( Integer.toHexString( _flip( _flip( z ) ) ) );
-            return;
-        }
-
-        ObjectId x = new ObjectId();
-
-        double num = 5000000.0;
-        
-        long start = System.currentTimeMillis();
-        for ( double i=0; i<num; i++ ){
-            ObjectId id = get();
-        }
-        long end = System.currentTimeMillis();
-        System.out.println( ( ( num * 1000.0 ) / ( end - start ) ) + " oid/sec" );
-        
-        Set<ObjectId> s = new HashSet<ObjectId>();
-        for ( double i=0; i<num/10; i++ ){
-            ObjectId id = get();
-            if ( s.contains( id ) )
-                throw new RuntimeException( "ObjectId() generated a repeat" );
-            s.add( id );
-
-            ObjectId o = new ObjectId( id.toString() );
-            if ( ! id.equals( o ) )
-                throw new RuntimeException( o.toString() + " != " + id.toString() );
         }
 
     }

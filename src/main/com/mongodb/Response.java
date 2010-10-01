@@ -26,7 +26,7 @@ import org.bson.io.Bits;
 
 class Response {
     
-    Response( DBCollection collection ,  InputStream in )
+    Response( DBCollection collection ,  InputStream in, BSONDecoder decoder)
         throws IOException {
         _collection = collection;
 
@@ -53,8 +53,7 @@ class Response {
         else
             _objects = new ArrayList<DBObject>( _num );
 
-        DBCallback c = DBCallback.FACTORY.create( _collection );
-        BSONDecoder decoder = TL.get();
+        DBCallback c = DBCallback.FACTORY.create( _collection );        
         
         for ( int i=0; i<_num; i++ ){
             if ( user._toGo < 5 )
@@ -94,12 +93,12 @@ class Response {
 //            return false;
             
         // have a tailable cursor
-        if ( ( _flags & Bytes.RESULTFLAG_AWAITCAPABLE ) > 0 )
+
+        if ( ( _flags & Bytes.RESULTFLAG_AWAITCAPABLE ) > 0 && ( queryOptions & Bytes.QUERYOPTION_AWAITDATA ) > 0 )
             return true;
         
         try {
-            System.out.println( "sleep" );
-            Thread.sleep( 1000 );
+            Thread.sleep( 500 );
         }
         catch ( Exception e ){}
         
@@ -182,9 +181,4 @@ class Response {
     
     final List<DBObject> _objects;
 
-    static ThreadLocal<BSONDecoder> TL = new ThreadLocal<BSONDecoder>(){
-        protected BSONDecoder initialValue(){
-            return new BSONDecoder();
-        }
-    };
 }
