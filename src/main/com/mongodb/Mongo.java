@@ -22,7 +22,6 @@ import java.net.*;
 import java.util.*;
 import java.util.concurrent.*;
 
-import org.bson.util.*;
 import org.bson.io.*;
 
 /**
@@ -316,7 +315,7 @@ public class Mongo {
     }
 
     /**
-     * makes thisq query ok to run on a slave node
+     * makes this query ok to run on a slave node
      */
     public void slaveOk(){
         addOption( Bytes.QUERYOPTION_SLAVEOK );
