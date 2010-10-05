@@ -34,13 +34,13 @@ public abstract class DB {
      * updates, and removes).
      * @deprecated 
      */
-	@Deprecated
+    @Deprecated
     public static class WriteConcern {
         /**
          * Don't check for or report any errors on writes.
          */
         public final static com.mongodb.WriteConcern NONE = com.mongodb.WriteConcern.NONE;
-
+        
         /**
          * Use the default level of error checking on writes. Don't
          * send a getLastError command or wait for a response, but do
@@ -60,6 +60,7 @@ public abstract class DB {
     public DB( Mongo mongo , String name ){
         _mongo = mongo;
     	_name = name;
+        _options = new Bytes.OptionHolder( _mongo._netOptions );
     }
 
     public abstract void requestStart();
@@ -71,55 +72,6 @@ public abstract class DB {
      * @return the collection
      */
     protected abstract DBCollection doGetCollection( String name );
-    
-    DBCollection renameCollection ( String name, String newName )
-    	throws MongoException  {
-    	
-    	String fullName = _name + "." + name;
-
-    	CommandResult ret = 
-            getSisterDB( "admin" )
-            .command( BasicDBObjectBuilder.start()
-                      .add( "renameCollection" , fullName )
-                      .add( "to" , _name + "." + newName )
-                      .get() );
-        ret.throwOnError();
-
-        removeFromCollectionCache( name , newName );
-
-        return getCollection( newName );
-    }
-    
-    void dropCollection( String name )
-    	throws MongoException  {
-    	
-    	CommandResult res = command( new BasicDBObjectBuilder().add( "drop" , name ).get() );
-        if ( res.ok() || res.getErrorMessage().equals( "ns not found" ) ) {
-        	removeFromCollectionCache( name );
-        	return;
-        }
-        throw new MongoException( "error dropping : " + res );
-
-    }
-    
-    public void removeFromCollectionCache( String...names )
-    	throws MongoException  {
-
-    	if (names == null || names.length == 0) return;
-    	
-    	for ( String name : names ) {
-        	String fullName = _name + "." + name;
-    		//remove collection from cache
-	    	DBCollection collToRemove = null;
-	    	for (DBCollection coll : _seenCollections)
-	    		if (coll.getFullName().equals( fullName )) {
-	    			collToRemove = coll;
-	    			break;
-	    		}
-	    	if (collToRemove != null)
-	    		_seenCollections.remove( collToRemove );
-    	}
-    }
     
     /** Gets a collection with a given name.
      * If the collection does not exist, a new collection is created.
@@ -528,12 +480,36 @@ public abstract class DB {
         return _mongo.getDB( name );
     }
 
+    /**
+     * makes thisq query ok to run on a slave node
+     */
+    public void slaveOk(){
+        addOption( Bytes.QUERYOPTION_SLAVEOK );
+    }
+
+    public void addOption( int option ){
+        _options.add( option );
+    }
+
+    public void setOptions( int options ){
+        _options.set( options );
+    }
+
+    public void resetOptions(){
+        _options.reset();
+    }
+   
+    public int getOptions(){
+        return _options.get();
+    }
+
     final Mongo _mongo;
     final String _name;
     final Set<DBCollection> _seenCollections = new HashSet<DBCollection>();
 
     protected boolean _readOnly = false;
     private com.mongodb.WriteConcern _concern;
+    final Bytes.OptionHolder _options;
 
     String _username;
     byte[] _authhash = null;
