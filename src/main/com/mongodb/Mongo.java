@@ -18,6 +18,7 @@
 
 package com.mongodb;
 
+import java.lang.ref.*;
 import java.net.*;
 import java.util.*;
 import java.util.concurrent.*;
@@ -76,6 +77,12 @@ public class Mongo {
         return new Mongo( addr ).getDB( addr.getDBName() );
     }
 
+    /** Returns the count of mongo instances used by static methods**/
+    public static int getStaticInstanceCount () {
+    	return _mongos.size();
+    }
+    
+    /**  returns a mongo instance based on the host **/
     public static Mongo getStaticMongo( String host )
         throws UnknownHostException , MongoException {
         return getStaticMongo( host , null );
@@ -83,17 +90,19 @@ public class Mongo {
 
     private static final MongoOptions _defaultOptions = new MongoOptions();
 
+    /** Returns a Mongo instance based on the host + options. **/
     public static Mongo getStaticMongo( String host , MongoOptions options )
         throws UnknownHostException , MongoException {
 
         final String key = host + "-" + options;
         
-        Mongo m = _mongos.get( key );
+        WeakReference<Mongo> mRef = _mongos.get( key );
+        Mongo m = mRef.get();
         if ( m != null )
             return m;
         
         m = new Mongo( host , options == null ? _defaultOptions : options );
-        Mongo temp = _mongos.putIfAbsent( key , m );
+        Mongo temp = _mongos.putIfAbsent( key , new WeakReference(m) ).get();
         if ( temp != null ){
             m.close();
             return temp;
@@ -355,6 +364,5 @@ public class Mongo {
         
     };
 
-
-    private static final ConcurrentMap<String,Mongo> _mongos = new ConcurrentHashMap<String,Mongo>();
+    private static final ConcurrentMap<String, WeakReference<Mongo>> _mongos = new ConcurrentHashMap<String,WeakReference<Mongo>>();
 }
