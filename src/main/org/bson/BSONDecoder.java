@@ -7,6 +7,7 @@ import static org.bson.BSON.*;
 import java.io.*;
 import java.lang.ref.*;
 
+import org.bson.io.*;
 import org.bson.types.*;
 
 public class BSONDecoder {
@@ -42,7 +43,7 @@ public class BSONDecoder {
         return decode( new Input( in ) , callback );
     }
     
-    public int decode( Input in  , BSONCallback callback )
+    int decode( Input in  , BSONCallback callback )
         throws IOException {
 
         if ( _in != null || _callback != null )
@@ -62,22 +63,21 @@ public class BSONDecoder {
     
     int decode()
         throws IOException {
-
-        final int start = _in.getBytesRead();
+    	//
+    	// We already read four bytes for length
+        final int start = _in.getBytesRead() - 4;
         
-        final int len = _in.readInt();
-
         _callback.objectStart();
         while ( decodeElement() );
         _callback.objectDone();
         
         final int read = _in.getBytesRead() - start;
 
-        if ( read != len ){
+        if ( read != _in._length ) {
             //throw new IllegalArgumentException( "bad data.  lengths don't match " + read + " != " + len );
         }
 
-        return len;
+        return _in._length;
     }
     
     boolean decodeElement()
@@ -258,9 +258,14 @@ public class BSONDecoder {
     	 */
     	final private static int MAX_READAHEADSIZE = 512;
 
-    	Input( final InputStream in ){
+    	Input( final InputStream in ) 
+    		throws IOException {
             _in = in;
             _read = 0;
+            //
+            // Limit Buffer to only read 4 bytes for the real length
+            _length = 4;
+            _length = readInt();
         }
         /**
          * Ensures that a continuous block of bytes is loaded to the buffer. Its responsibility to consume
@@ -303,8 +308,10 @@ public class BSONDecoder {
         	_o = 0;
         	_l = remaining;
         	//
-        	//
-        	final int readahead = Math.min(MAX_READAHEADSIZE, _random.length - remaining);
+        	// Calculate possible readahead. It is not allowed to read beyond the end of the current object (_length)
+        	final int bytesTillEnd = _length - _read - _l;
+        	final int readahead = Math.min(Math.min(MAX_READAHEADSIZE, _random.length - remaining), bytesTillEnd);
+        	
         	int wanted = Math.max(readahead, blockSize - remaining);
         	
         	while(wanted > 0 && _l < blockSize) {
@@ -323,7 +330,7 @@ public class BSONDecoder {
         	//
         	// Ups, we were not able to read enough bytes from stream
         	if(_l < blockSize) {
-        		System.out.println("ups");
+        		throw new RuntimeException("end of stream reached");
         	}
         }
 
@@ -403,13 +410,22 @@ public class BSONDecoder {
         	throws IOException {
 	        //
 	        // Take the remaining bytes from the buffer
-	        int outputOffset = _l - _o;	        
-	        
-	        if(outputOffset > 0) {
-	        	System.arraycopy(_random, _o, b, 0, outputOffset);
+	        int remaining = _l - _o;
+	        //
+	        // Did we alread read enough bytes?
+	        if(remaining >= len) {
+	        	System.arraycopy(_random, _o, b, 0, len);	        	
+	        	_o += len;
+	        	
+	        	return;
+	        }
+	        //
+	        // Take the complete remaining bytes from buffer
+	        if(remaining > 0) {
+	        	System.arraycopy(_random, _o, b, 0, remaining);
 	        	//
 	        	// Reduced needed bytes
-	        	len -= outputOffset;
+	        	len -= remaining;
 	        	//
 	        	// leave it up to the next ensure a continuous block
 	        	_o = _l;
@@ -417,7 +433,7 @@ public class BSONDecoder {
 	        //
 	        // Read the rest direct from the InputStream
 	        while ( len > 0 ) {
-	            final int bytesRead = _in.read( b , outputOffset , len );
+	            final int bytesRead = _in.read( b , remaining , len );
 	        	//
 	        	// Reduced needed bytes	            
 	            len -= bytesRead;
@@ -425,7 +441,7 @@ public class BSONDecoder {
 	            // Increase the number of read bytes because we reading directly from _in
 	            _read += bytesRead;
 
-	            outputOffset += bytesRead;
+	            remaining += bytesRead;
 	        }
 	    }
         /**
@@ -494,7 +510,7 @@ public class BSONDecoder {
         	else
         		stringBuilder.setLength(0);
         	//
-        	// Fille the buffer with the first byte
+        	// Fill the buffer with the first byte
         	ensureContinuousBlock(1);
         	            
         	outer:
@@ -595,6 +611,7 @@ public class BSONDecoder {
         int _read;
         
         final InputStream _in;
+        int _length;
     }
 
     private Input _in;
