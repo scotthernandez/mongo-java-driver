@@ -21,10 +21,8 @@ class ReplicaSetStatus {
 
     static final Logger _rootLogger = Logger.getLogger( "com.mongodb.ReplicaSetStatus" );
     
-    ReplicaSetStatus( Mongo m , List<ServerAddress> initial ){
-        _mongo = m;
-        _adminDB = _mongo.getDB( "admin" );
-
+    ReplicaSetStatus( List<ServerAddress> initial ){
+        
         _all = Collections.synchronizedList( new ArrayList<Node>() );
         for ( ServerAddress addr : initial ){
             _all.add( new Node( addr ) );
@@ -105,7 +103,7 @@ class ReplicaSetStatus {
         synchronized void update(){
             try {
                 long start = System.currentTimeMillis();
-                CommandResult res = _port.runCommand( _adminDB , _isMasterCmd );
+                CommandResult res = _port.runCommand( "admin" , _isMasterCmd );
                 _lastCheck = System.currentTimeMillis();
                 _pingTime = _lastCheck - start;
                 
@@ -125,29 +123,6 @@ class ReplicaSetStatus {
                     }
                 }
                 
-                if ( _isMaster ){
-                    DBObject config = _port.findOne( _mongo.getDB( "local" ) , "system.replset" , new BasicDBObject() );
-                    if ( config == null ){
-                        // probbaly a replica pair
-                        // TODO: add this in when pairs are really gone
-                        //_logger.log( Level.SEVERE , "no replset config!" );
-                    }
-                    else {
-                        
-                        String setName = config.get( "_id" ).toString();
-                        if ( _setName == null ){
-                            _setName = setName;
-                            _logger = Logger.getLogger( _rootLogger.getName() + "." + setName );
-                        }
-                        else if ( !_setName.equals( setName ) ){
-                            _logger.log( Level.SEVERE , "mis match set name old: " + _setName + " new: " + setName );
-                            return;
-                        } 
-
-                        // TODO: look at members
-                    }
-                }
-                
             }
             catch ( MongoInternalException e ){
                 Throwable root = e;
@@ -160,6 +135,45 @@ class ReplicaSetStatus {
                 _logger.log( Level.SEVERE , "can't update node: " + _addr , e );
                 _ok = false;
             }
+
+            if ( ! _isMaster )
+                return;
+            
+            try {
+                DBObject config = _port.findOne( "local.system.replset" , new BasicDBObject() );
+                if ( config == null ){
+                    // probbaly a replica pair
+                    // TODO: add this in when pairs are really gone
+                    //_logger.log( Level.SEVERE , "no replset config!" );
+                }
+                else {
+                    
+                    String setName = config.get( "_id" ).toString();
+                    if ( _setName == null ){
+                        _setName = setName;
+                        _logger = Logger.getLogger( _rootLogger.getName() + "." + setName );
+                    }
+                    else if ( !_setName.equals( setName ) ){
+                        _logger.log( Level.SEVERE , "mis match set name old: " + _setName + " new: " + setName );
+                        return;
+                    } 
+                    
+                    // TODO: look at members
+                }
+            }
+
+            catch ( MongoInternalException e ){
+                if ( _setName != null ){
+                    // this probably means the master is busy, so going to ignore
+                }
+                else {
+                    _logger.log( Level.SEVERE , "can't get intial config from node: " + _addr , e );
+                }
+            }
+            catch ( Exception e ){
+                _logger.log( Level.SEVERE , "unexpected error getting config from node: " + _addr , e );
+            }
+
                 
         }
 
@@ -296,8 +310,6 @@ class ReplicaSetStatus {
         _closed = true;
     }
 
-    final Mongo _mongo;
-    final DB _adminDB;
 
     final List<Node> _all;
     Updater _updater;
@@ -325,7 +337,7 @@ class ReplicaSetStatus {
 
         Mongo m = new Mongo( addrs );
 
-        ReplicaSetStatus status = new ReplicaSetStatus( m , addrs );
+        ReplicaSetStatus status = new ReplicaSetStatus( addrs );
         System.out.println( status.ensureMaster()._addr );
 
         while ( true ){
