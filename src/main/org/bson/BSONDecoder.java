@@ -42,7 +42,7 @@ public class BSONDecoder {
         return decode( new Input( in ) , callback );
     }
     
-    public int decode( Input in  , BSONCallback callback )
+    int decode( Input in  , BSONCallback callback )
         throws IOException {
 
         if ( _in != null || _callback != null )
@@ -62,22 +62,21 @@ public class BSONDecoder {
     
     int decode()
         throws IOException {
-
-        final int start = _in._read;
+    	//
+    	// We already read four bytes for length
+        final int start = _in.getBytesRead() - 4;
         
-        final int len = _in.readInt();
-
         _callback.objectStart();
         while ( decodeElement() );
         _callback.objectDone();
         
-        final int read = _in._read - start;
+        final int read = _in.getBytesRead() - start;
 
-        if ( read != len ){
+        if ( read != _in._length ) {
             //throw new IllegalArgumentException( "bad data.  lengths don't match " + read + " != " + len );
         }
 
-        return len;
+        return _in._length;
     }
     
     boolean decodeElement()
@@ -251,32 +250,154 @@ public class BSONDecoder {
     }
     
     class Input {
-        Input( InputStream in ){
+    	/**
+    	 * Maximum size of readahead. This ensures that we copy in memory at most
+    	 * readahead bytes if the buffer does not contain enough continuous bytes.
+    	 * Must be lower or equal than size of _charBuffer to prevent a buffer overflow.
+    	 */
+    	final private static int MAX_READAHEADSIZE = 512;
+
+    	Input( final InputStream in ) 
+    		throws IOException {
             _in = in;
             _read = 0;
+            //
+            // Limit Buffer to only read 4 bytes for the real length
+            _length = 4;
+            _length = readInt();
         }
-        
-        int readInt()
-            throws IOException {
-            _read += 4;
-            return Bits.readInt( _in );
+        /**
+         * Ensures that a continuous block of bytes is loaded to the buffer. Its responsibility to consume
+         * the complete block.
+         * 
+         * @param blockSize
+         * @throws IOException
+         */
+        void ensureContinuousBlock(int blockSize) 
+        	throws IOException {
+        	//
+        	// Enough bytes already loaded?
+        	if(_o + blockSize <= _l)
+        		return;
+        	
+        	final int remaining = _l - _o;
+        	//
+        	// Is buffer large enough for block?
+        	if(blockSize < _random.length) {        		        	
+            	//
+            	// copy the rest in the buffer to the front
+            	System.arraycopy(_random, _o, _random, 0, remaining);        		
+        	}
+        	else {
+        		//
+        		// Allocate a larger buffer
+        		final byte largerBuffer[] = new byte[blockSize + MAX_READAHEADSIZE];
+        		//
+        		// copy the rest of the old buffer to the front of the new
+            	System.arraycopy(_random, _o, largerBuffer, 0, remaining);
+            	//
+            	// swap the buffers
+            	_random = largerBuffer;
+        	}
+        	//
+        	// Increase the numbers of bytes by all processed bytes (offset with current buffer)
+        	// Buffer is now aligned with the front
+        	_read += _o;
+        	
+        	_o = 0;
+        	_l = remaining;
+        	//
+        	// Calculate possible readahead. It is not allowed to read beyond the end of the current object (_length)
+        	final int bytesTillEnd = _length - _read - _l;
+        	final int readahead = Math.min(Math.min(MAX_READAHEADSIZE, _random.length - remaining), bytesTillEnd);
+        	
+        	int wanted = Math.max(readahead, blockSize - remaining);
+        	
+        	while(wanted > 0 && _l < blockSize) {
+        		//
+        		// Read as much as we wanted at the end of the buffer
+            	int rd = _in.read(_random, _l, wanted);
+            	//
+            	// EOS reached?
+            	if(rd < 0)
+            		break;
+            	//
+            	// Increase end and reduced wanted by bytes read from InputStream
+            	_l = _l + rd;
+            	wanted -=rd;
+        	}
+        	//
+        	// Ups, we were not able to read enough bytes from stream
+        	if(_l < blockSize) {
+        		throw new RuntimeException("end of stream reached");
+        	}
         }
 
+        /**
+         * Reads an integer.
+         * 
+         * @return
+         * @throws IOException
+         */
+        final int readInt()
+            throws IOException {
+        	//
+        	// All integers are 4 bytes
+        	ensureContinuousBlock(4);
+            //
+            // Code copied from java.io.Bits
+        	return 
+        		((_random[_o++] & 0xFF) << 0) +
+ 	       		((_random[_o++] & 0xFF) << 8) +
+ 	       		((_random[_o++] & 0xFF) << 16) +
+ 	       		((_random[_o++]) << 24);
+        }
+        /**
+         * Reads a long.
+         * 
+         * @return
+         * @throws IOException
+         */
         long readLong()
-            throws IOException {
-            _read += 8;
-            return Bits.readLong( _in );
+        	throws IOException {
+        	//
+        	// All longs are 8 bytes
+	        ensureContinuousBlock(8);     
+            //
+            // Code copied from java.io.Bits	        
+	    	return ((_random[_o++] & 0xFFL) << 0) +
+		       ((_random[_o++] & 0xFFL) << 8) +
+		       ((_random[_o++] & 0xFFL) << 16) +
+		       ((_random[_o++] & 0xFFL) << 24) +
+		       ((_random[_o++] & 0xFFL) << 32) +
+		       ((_random[_o++] & 0xFFL) << 40) +
+		       ((_random[_o++] & 0xFFL) << 48) +
+		       (((long) _random[_o++]) << 56);
         }
-
+        /**
+         * Simply read a double
+         * 
+         * @return
+         * @throws IOException
+         */
         double readDouble()
             throws IOException {
             return Double.longBitsToDouble( readLong() );
         }
-
+        /**
+         * Read the next byte from stream.
+         * 
+         * @return
+         * @throws IOException
+         */
         byte read()
-            throws IOException {
-            _read++;
-            return (byte)(_in.read() & 0xFF);
+        	throws IOException {
+        	//
+        	// Ensure that one byte can be read
+        	ensureContinuousBlock(1);
+        	//
+        	// Simply return the byte
+        	return _random[_o++];
         }
 
         void fill( byte b[] )
@@ -285,15 +406,92 @@ public class BSONDecoder {
         }
 
         void fill( byte b[] , int len )
-            throws IOException {
-            int off = 0;
-            while ( len > 0 ){
-                int x = _in.read( b , off , len );
-                _read += x;
-                off += x;
-                len -= x;
+        	throws IOException {
+	        //
+	        // Take the remaining bytes from the buffer
+	        int remaining = _l - _o;
+	        //
+	        // Did we alread read enough bytes?
+	        if(remaining >= len) {
+	        	System.arraycopy(_random, _o, b, 0, len);	        	
+	        	_o += len;
+	        	
+	        	return;
+	        }
+	        //
+	        // Take the complete remaining bytes from buffer
+	        if(remaining > 0) {
+	        	System.arraycopy(_random, _o, b, 0, remaining);
+	        	//
+	        	// Reduced needed bytes
+	        	len -= remaining;
+	        	//
+	        	// leave it up to the next ensure a continuous block
+	        	_o = _l;
+	        }
+	        //
+	        // Read the rest direct from the InputStream
+	        while ( len > 0 ) {
+	            final int bytesRead = _in.read( b , remaining , len );
+	        	//
+	        	// Reduced needed bytes	            
+	            len -= bytesRead;
+	            //
+	            // Increase the number of read bytes because we reading directly from _in
+	            _read += bytesRead;
+
+	            remaining += bytesRead;
+	        }
+	    }
+        /**
+         * Read a multibyte character with the first given as parameter <code>c1</code>.
+         * 
+         * @param c1
+         * @return
+         * @throws IOException
+         */
+        char readMultiByte(int c1) 
+        	throws IOException {
+            switch (c1 >> 4) {
+                case 12: 
+                case 13: {
+                	//
+                	// We need at least one byte for the character and one for the null to terminate
+                	ensureContinuousBlock(2);
+                	//
+                	// Read next byte and check for correctness
+                    final int c2 = _random[_o++];
+                    
+                    if ((c2 & 0xC0) != 0x80)
+                    	return '\uFFFD';
+                    
+                    return (char)(((c1 & 0x1F) << 6) | (c2 & 0x3F));
+                }
+                case 14: {
+                	//
+                	// We need at least two bytes for the character and one for the null to terminate
+                	ensureContinuousBlock(3);
+                	//
+                	// Read next bytes and check for correctness                	
+                	final int c2 = _random[_o++];
+                	final int c3 = _random[_o++];
+                	
+                	if (((c2 & 0xC0) != 0x80) || ((c3 & 0xC0) != 0x80)) 
+                    	return '\uFFFD';
+                	
+                	return (char)(((c1 & 0x0F) << 12) | ((c2 & 0x3F) << 6)  | ((c3 & 0x3F) << 0));
+                }	
+                default:
+                	return '\uFFFD';
             }
         }
+        /**
+         * Read an null terminated string in UTF8 from {@link InputStream}. 
+         * We assume that null terminated strings have small lengths and are mostly ascii.
+         * 
+         * @return
+         * @throws IOException
+         */
 
         String readCStr()
             throws IOException {
@@ -336,28 +534,51 @@ public class BSONDecoder {
             _stringBuffer.reset();
             return out;
         }
-
+        /**
+         * Read an UTF8-String from {@link InputStream}. 
+         * 
+         * @return
+         * @throws IOException
+         */
         String readUTF8String()
             throws IOException {
-            int size = readInt();
+        	//
+        	// Read size and ensure that the complete string is in the buffer
+            final int size = readInt();
             if ( size < 0 || size > ( 3 * 1024 * 1024 ) )
                 throw new RuntimeException( "bad string size: " + size );
-            byte[] b = size < _random.length ? _random : new byte[size];
-
-            fill( b , size );
             
+            ensureContinuousBlock(size);
+            //
+            // Start of the string is the current pointer in buffer
+            final int startOfString = _o;
+            //
+            // Increase offset by size of string
+            _o += size;
+
             try {
-                return new String( b , 0 , size - 1 , "UTF-8" );
+                return new String( _random, startOfString , size - 1 , "UTF-8" );
             }
             catch ( java.io.UnsupportedEncodingException uee ){
                 throw new RuntimeException( "impossible" , uee );
             }
         }
+        /**
+         * Returns the number of bytes read so far.
+         * 
+         * @return
+         */
+        int getBytesRead() {
+        	return _read + _o;
+        }
         
+        int _o;
+        int _l;
         int _read;
+        
         final InputStream _in;
+        int _length;
     }
-
 
     private Input _in;
     private BSONCallback _callback;
