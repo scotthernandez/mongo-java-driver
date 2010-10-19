@@ -66,7 +66,7 @@ public class DBCursorTest extends TestCase {
         assertEquals( 50 , c.find().snapshot().limit(50).toArray().size() );
     }
 
-    @Test//(enabled = false)
+    @Test(enabled = false)
     public void testTailable() {
         DBCollection c = _db.getCollection("tail1");
         c.drop();
@@ -91,7 +91,7 @@ public class DBCursorTest extends TestCase {
 		
     }
 
-    @Test//(enabled = false)
+    @Test(enabled = false)
     public void testTailableAwait() {
         DBCollection c = _db.getCollection("tail1");
         c.drop();
