@@ -83,6 +83,7 @@ public class DBCursor implements Iterator<DBObject> , Iterable<DBObject> {
         c._numWanted = _numWanted;
         c._skip = _skip;
         c._options = _options;
+        c._batchSize = _batchSize;
         if ( _specialFields != null )
             c._specialFields = new BasicDBObject( _specialFields.toMap() );
         return c;
@@ -263,8 +264,8 @@ public class DBCursor implements Iterator<DBObject> , Iterable<DBObject> {
     /**
      * makes this query ok to run on a slave node
      */
-    public void slaveOk(){
-        addOption( Bytes.QUERYOPTION_SLAVEOK );
+    public DBCursor slaveOk(){
+        return addOption( Bytes.QUERYOPTION_SLAVEOK );
     }
 
     /**

@@ -35,13 +35,19 @@ class DBPortPool extends SimplePool<DBPort> {
         
         Holder( MongoOptions options ){
             _options = options;
+            {
+                MBeanServer temp = null;
+                try {
+                    temp = ManagementFactory.getPlatformMBeanServer();
+                }
+                catch ( Throwable t ){
+                }
+                
+                _server = temp;
+            }
         }
 
         DBPortPool get( ServerAddress addr ){
-            return get( addr.getSocketAddress() );
-        }
-        
-        DBPortPool get( InetSocketAddress addr ){
             
             DBPortPool p = _pools.get( addr );
             
@@ -57,19 +63,21 @@ class DBPortPool extends SimplePool<DBPort> {
                 p = new DBPortPool( addr , _options );
                 _pools.put( addr , p);
 
-                try {
-                    ObjectName on = createObjectName( addr );
-                    if ( _server.isRegistered( on ) ){
-                        _server.unregisterMBean( on );
-                        Bytes.LOGGER.log( Level.INFO , "multiple Mongo instances for same host, jmx numbers might be off" );
+                if ( _server != null ){
+                    try {
+                        ObjectName on = createObjectName( addr );
+                        if ( _server.isRegistered( on ) ){
+                            _server.unregisterMBean( on );
+                            Bytes.LOGGER.log( Level.INFO , "multiple Mongo instances for same host, jmx numbers might be off" );
+                        }
+                        _server.registerMBean( p , on );
                     }
-                    _server.registerMBean( p , on );
-                }
-                catch ( JMException e ){
-                    Bytes.LOGGER.log( Level.WARNING , "jmx registration error: " + e + " continuing..." );
-                }
-                catch ( java.security.AccessControlException e ){
-                    Bytes.LOGGER.log( Level.WARNING , "jmx registration error: " + e + " continuing..." );
+                    catch ( JMException e ){
+                        Bytes.LOGGER.log( Level.WARNING , "jmx registration error: " + e + " continuing..." );
+                    }
+                    catch ( java.security.AccessControlException e ){
+                        Bytes.LOGGER.log( Level.WARNING , "jmx registration error: " + e + " continuing..." );
+                    }
                 }
 
             }
@@ -94,13 +102,13 @@ class DBPortPool extends SimplePool<DBPort> {
             }
         }
 
-        private ObjectName createObjectName( InetSocketAddress addr ) throws MalformedObjectNameException {
+        private ObjectName createObjectName( ServerAddress addr ) throws MalformedObjectNameException {
             return new ObjectName( "com.mongodb:type=ConnectionPool,host=" + addr.toString().replace( ':' , '_' ) );
         }
 
         final MongoOptions _options;
-        final Map<InetSocketAddress,DBPortPool> _pools = Collections.synchronizedMap( new HashMap<InetSocketAddress,DBPortPool>() );
-        final MBeanServer _server = ManagementFactory.getPlatformMBeanServer();
+        final Map<ServerAddress,DBPortPool> _pools = Collections.synchronizedMap( new HashMap<ServerAddress,DBPortPool>() );
+        final MBeanServer _server;
     }
 
     // ----
@@ -125,7 +133,7 @@ class DBPortPool extends SimplePool<DBPort> {
 
     // ----
     
-    DBPortPool( InetSocketAddress addr , MongoOptions options ){
+    DBPortPool( ServerAddress addr , MongoOptions options ){
         super( "DBPortPool-" + addr.toString() , options.connectionsPerHost , options.connectionsPerHost );
         _options = options;
         _addr = addr;
@@ -218,6 +226,6 @@ class DBPortPool extends SimplePool<DBPort> {
 
     final MongoOptions _options;
     final private Semaphore _waitingSem;
-    final InetSocketAddress _addr;
+    final ServerAddress _addr;
     boolean _everWorked = false;
 }

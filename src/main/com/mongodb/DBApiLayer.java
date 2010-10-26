@@ -188,18 +188,28 @@ public class DBApiLayer extends DB {
             throws MongoException {
 
             List<Long> l = null;
+
+            // check without synchronisation ( double check pattern will avoid having two threads do the cleanup )
+            // maybe the whole cleanCursor logic should be moved to a background thread anyway
+            int sz = _deadCursorIds.size();
+
+            if ( sz == 0 )
+                return;
+            
+            if ( sz % 20 != 0 && sz < NUM_CURSORS_BEFORE_KILL )
+                return;
             
             synchronized ( _deadCursorIdsLock ){
-                int sz = _deadCursorIds.size();
+            	sz = _deadCursorIds.size();
 
-                if ( _deadCursorIds.size() == 0 )
+                if ( sz == 0 )
                     return;
                 
                 if ( sz % 20 != 0 && sz < NUM_CURSORS_BEFORE_KILL )
                     return;
 
                 l = _deadCursorIds;
-                _deadCursorIds = new Vector<Long>();
+                _deadCursorIds = new LinkedList<Long>();
             }
 
             Bytes.LOGGER.info( "going to kill cursors : " + l.size() );
@@ -209,7 +219,9 @@ public class DBApiLayer extends DB {
             }
             catch ( Throwable t ){
                 Bytes.LOGGER.log( Level.WARNING , "can't clean cursors" , t );
-                _deadCursorIds.addAll( l );
+                synchronized ( _deadCursorIdsLock ){
+                    _deadCursorIds.addAll( l );
+                }
             }
         }
 
@@ -256,7 +268,7 @@ public class DBApiLayer extends DB {
             
             OutMessage query = OutMessage.query( _mongo , options , _fullNameSpace , numToSkip , batchSize , ref , fields );
 
-            Response res = _connector.call( _db , this , query , 2 );
+            Response res = _connector.call( _db , this , query , null , 2 );
 
             if ( res.size() == 0 )
                 return null;
@@ -313,6 +325,7 @@ public class DBApiLayer extends DB {
             _collection = coll;
             _numToReturn = numToReturn;
             _options = options;
+            _host = res._host;
         }
 
         private void init( Response res ){
@@ -362,7 +375,7 @@ public class DBApiLayer extends DB {
             m.writeLong( _curResult.cursor() );
             
             try {
-                Response res = _connector.call( DBApiLayer.this , _collection , m );
+                Response res = _connector.call( DBApiLayer.this , _collection , m , _host );
                 _numGetMores++;
                 init( res );
             }
@@ -415,7 +428,8 @@ public class DBApiLayer extends DB {
         int _numToReturn;
         final MyCollection _collection;
         final int _options;
-        
+        final ServerAddress _host; // host where first went.  all subsequent have to go there
+
         private long _totalBytes = 0;
         private int _numGetMores = 0;
         private List<Integer> _sizes = new ArrayList<Integer>();
