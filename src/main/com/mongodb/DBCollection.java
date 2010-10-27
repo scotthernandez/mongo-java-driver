@@ -637,7 +637,7 @@ public abstract class DBCollection {
         if ( skip > 0 )
             cmd.put( "skip" , skip );
 
-        CommandResult res = _db.command(cmd);
+        CommandResult res = _db.command(cmd,getOptions());
 
         if ( ! res.ok() ){
             String errmsg = res.getErrorMessage();
