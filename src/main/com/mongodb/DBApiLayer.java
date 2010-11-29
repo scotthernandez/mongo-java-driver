@@ -244,7 +244,7 @@ public class DBApiLayer extends DB {
             return last;
         }
         
-        public WriteResult remove( DBObject o , com.mongodb.WriteConcern concern )
+        public WriteResult remove( DBObject o , WriteConcern concern )
             throws MongoException {
 
             if ( willTrace() ) trace( "remove: " + _fullNameSpace + " " + JSON.serialize( o ) );
