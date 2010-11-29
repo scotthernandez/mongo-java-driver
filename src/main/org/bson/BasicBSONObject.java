@@ -108,6 +108,16 @@ public class BasicBSONObject extends LinkedHashMap<String,Object> implements BSO
         return BSON.toInt( o );
     }
 
+    /** Returns the value of a field as a <code>BSONObject</code>.
+     * @param key the field to look for
+     * @return the field value cast to a <code>BSONObject</code>.
+     */
+    public BSONObject getObj( String key ){
+        Object foo = get( key );
+        return (BSONObject) foo ;
+    }
+
+    
     /** Returns the value of a field as an <code>int</code>.
      * @param key the field to look for
      * @param def the default to return

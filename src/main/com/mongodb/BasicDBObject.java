@@ -90,4 +90,8 @@ public class BasicDBObject extends BasicBSONObject implements DBObject {
 
 
     private boolean _isPartialObject = false;
+
+    public BasicDBObject getObj(String key) {
+        return (BasicDBObject) super.getObj( key );
+    }
 }
