@@ -18,9 +18,10 @@
 
 package org.bson.types;
 
-import com.mongodb.util.OrderedSet;
+import com.mongodb.util.StringRangeSet;
 
 import org.bson.*;
+
 
 import java.util.*;
 
@@ -132,10 +133,7 @@ public class BasicBSONList extends ArrayList<Object> implements BSONObject {
     }
 
     public Set<String> keySet(){
-        Set<String> s = new OrderedSet<String>();
-        for ( int i=0; i<size(); i++ )
-            s.add( String.valueOf( i ) );
-        return s;
+      return new StringRangeSet(size());
     }
 
     public Map toMap() {
@@ -143,7 +141,7 @@ public class BasicBSONList extends ArrayList<Object> implements BSONObject {
         Iterator i = this.keySet().iterator();
         while (i.hasNext()) {
             Object s = i.next();
-            m.put(s, this.get(s+""));
+            m.put(s, this.get(String.valueOf(s)));
         }
         return m;
     }

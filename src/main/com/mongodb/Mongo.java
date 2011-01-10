@@ -20,6 +20,7 @@ package com.mongodb;
 
 import java.net.*;
 import java.util.*;
+import java.util.Map.Entry;
 import java.util.concurrent.*;
 
 import org.bson.io.*;
@@ -96,7 +97,7 @@ import org.bson.io.*;
 public class Mongo {
 
     public static final int MAJOR_VERSION = 2;
-    public static final int MINOR_VERSION = 3;
+    public static final int MINOR_VERSION = 4;
 
     public static DB connect( DBAddress addr ){
         return new Mongo( addr ).getDB( addr.getDBName() );
@@ -161,6 +162,7 @@ public class Mongo {
         _addr = addr;
         _addrs = null;
         _options = options;
+        _applyMongoOptions();
         _connector = new DBTCPConnector( this , _addr );
         _connector.checkMaster( true , true );
         _connector.testMaster();
@@ -194,6 +196,7 @@ public class Mongo {
         _addr = null;
         _addrs = Arrays.asList( left , right );
         _options = options;
+        _applyMongoOptions();
         _connector = new DBTCPConnector( this , _addrs );
         _connector.checkMaster( true , false );
         _connector.testMaster();
@@ -205,8 +208,8 @@ public class Mongo {
      * default).</p>
      * 
      * @see com.mongodb.ServerAddress
-     * @pair replicaSetSeeds put as many servers as you can in the list. 
-     *                       the system will figure the rest out
+     * @param replicaSetSeeds Put as many servers as you can in the list and
+     * the system will figure out the rest.
      */
     public Mongo( List<ServerAddress> replicaSetSeeds )
         throws MongoException {
@@ -228,6 +231,7 @@ public class Mongo {
         _addr = null;
         _addrs = replicaSetSeeds;
         _options = options;
+        _applyMongoOptions();
         _connector = new DBTCPConnector( this , _addrs );
         
         _connector.checkMaster( true , false );
@@ -246,6 +250,7 @@ public class Mongo {
         throws MongoException , UnknownHostException {
 
         _options = uri.getOptions();
+        _applyMongoOptions();
         
         if ( uri.getHosts().size() == 1 ){
             _addr = new ServerAddress( uri.getHosts().get(0) );
@@ -388,6 +393,14 @@ public class Mongo {
         return _netOptions.get();
     }
 
+    /**
+     * Helper method for setting up MongOptions at instantiation
+     * so that any options which affect this connection can be set.
+     */
+    void _applyMongoOptions() {
+        if (_options.slaveOk) slaveOk();
+        setWriteConcern( _options.getWriteConcern() );
+    }
     
     final ServerAddress _addr;
     final List<ServerAddress> _addrs;
@@ -446,6 +459,7 @@ public class Mongo {
 
         
         private static final ConcurrentMap<String,Mongo> _mongos = new ConcurrentHashMap<String,Mongo>();
-
+        
     }
+
 }

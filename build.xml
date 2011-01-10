@@ -1,7 +1,7 @@
 <?xml version='1.0'?>
 <project name="MongoDB Java Driver" default="compile" basedir=".">
 
-  <property name="version" value="2.3"/>
+  <property name="version" value="2.5-pre-"/>
   <property name="targetdir" location="target"/>
   <property name="testdir" location="${targetdir}/test"/>
 
@@ -39,7 +39,8 @@
            encoding="ISO-8859-1"
            memoryMaximumSize="256M"
            fork="true"
-           debug="on" >
+           debug="on" 
+    	   includeantruntime="false">
       <classpath refid="classpath"/>
     </javac>
 
@@ -50,7 +51,8 @@
            source="1.5"
            encoding="ISO-8859-1"
            fork="true"
-           debug="on" >
+           debug="on"
+    	   includeantruntime="false">
       <classpath refid="classpath"/>
     </javac>
 
@@ -67,7 +69,8 @@
            encoding="ISO-8859-1"
            memoryMaximumSize="256M"
            fork="true"
-           debug="on" >
+           debug="on"
+    	   includeantruntime="false">
       <classpath refid="classpath"/>
     </javac>
   </target>
@@ -109,7 +112,7 @@
              use="true"
              access="protected"
              >
-      <link href="http://java.sun.com/j2se/1.5/docs/api/" />
+      <link href="http://download.oracle.com/javase/1.5.0/docs/api/" />
       <classpath refid="classpath"/>
       <taglet name="ApiToolsTaglet" path="build/util" />
     </javadoc>
@@ -165,7 +168,8 @@
            deprecation="off"
            source="1.5"
            encoding="ISO-8859-1"
-           debug="on" >
+           debug="on" 
+    	   includeantruntime="false">
       <classpath refid="classpath"/>
     </javac>
 
@@ -187,7 +191,8 @@
            deprecation="off"
            source="1.5"
            encoding="ISO-8859-1"
-           debug="on" >
+           debug="on" 
+    	   includeantruntime="false">
       <classpath refid="classpath"/>
     </javac>
 
