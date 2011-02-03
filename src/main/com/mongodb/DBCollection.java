@@ -700,9 +700,27 @@ public abstract class DBCollection {
      * @return
      * @throws MongoException
      */
-    public long count(DBObject query)
+    public long count(DBObject query) 
         throws MongoException {
-        return getCount(query, null);
+        BasicDBObject cmd = new BasicDBObject();
+        cmd.put( "count", getName() );
+        cmd.put( "query", query );
+
+        CommandResult res = _db.command( cmd, getOptions() );
+
+        if ( ! res.ok() ){
+            String errmsg = res.getErrorMessage();
+            
+            if ( errmsg.equals("ns does not exist") || 
+                 errmsg.equals("ns missing" ) ){
+                // for now, return 0 - lets pretend it does exist
+                return 0;
+            }
+            
+            throw new MongoException( "error counting : " + res );
+        }
+
+        return res.getLong("n");
     }
 
 
@@ -711,6 +729,7 @@ public abstract class DBCollection {
      *  @return number of documents that match query
      * @throws MongoException
      */
+    @Deprecated
     public long getCount()
         throws MongoException {
         return getCount(new BasicDBObject(), null);
@@ -722,6 +741,7 @@ public abstract class DBCollection {
      *  @return
      * @throws MongoException
      */
+    @Deprecated
     public long getCount(DBObject query)
         throws MongoException {
         return getCount(query, null);
@@ -734,6 +754,7 @@ public abstract class DBCollection {
      *  @return
      * @throws MongoException
      */
+    @Deprecated
     public long getCount(DBObject query, DBObject fields)
         throws MongoException {
         return getCount( query , fields , 0 , 0 );
@@ -750,6 +771,7 @@ public abstract class DBCollection {
      * @return number of documents that match query and fields
      * @throws MongoException
      */
+    @Deprecated
     public long getCount(DBObject query, DBObject fields, long limit, long skip )
         throws MongoException {
 
