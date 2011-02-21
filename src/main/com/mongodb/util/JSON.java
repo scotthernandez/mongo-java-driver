@@ -52,6 +52,8 @@ public class JSON {
         }
         a.append("\"");
     }
+
+    @SuppressWarnings("unchecked")
     public static void serialize( Object o , StringBuilder buf ){
         
         o = Bytes.applyEncodingHooks( o );
@@ -119,7 +121,7 @@ public class JSON {
             buf.append( "{ " );
             
             Map m = (Map)o;
-            
+
             for ( Map.Entry entry : (Set<Map.Entry>)m.entrySet() ){
                 if ( first ) first = false;
                 else buf.append( " , " );
@@ -662,7 +664,7 @@ class JSONParser {
 }
 
 /**
- * Exeception throw when invalid JSON is passed to JSONParser.
+ * Exception throw when invalid JSON is passed to JSONParser.
  * 
  * This exception creates a message that points to the first 
  * offending character in the JSON string:
@@ -672,6 +674,8 @@ class JSONParser {
  * </pre>
  */
 class JSONParseException extends RuntimeException { 
+
+    private static final long serialVersionUID = -4415279469780082174L;
 
     String s;
     int pos;

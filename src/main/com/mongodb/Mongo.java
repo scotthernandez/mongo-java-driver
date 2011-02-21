@@ -185,8 +185,6 @@ public class Mongo {
         _options = options;
         _applyMongoOptions();
         _connector = new DBTCPConnector( this , _addr );
-        _connector.checkMaster( true , true );
-        _connector.testMaster();
     }
 
     /**
@@ -222,8 +220,6 @@ public class Mongo {
         _options = options;
         _applyMongoOptions();
         _connector = new DBTCPConnector( this , _addrs );
-        _connector.checkMaster( true , false );
-        _connector.testMaster();
     }
 
     /**
@@ -256,8 +252,6 @@ public class Mongo {
         _options = options;
         _applyMongoOptions();
         _connector = new DBTCPConnector( this , _addrs );
-        
-        _connector.checkMaster( true , false );
     }
 
     /**
@@ -284,7 +278,6 @@ public class Mongo {
             _addr = new ServerAddress( uri.getHosts().get(0) );
             _addrs = null;
             _connector = new DBTCPConnector( this , _addr );
-            _connector.testMaster();
         }
         else {
             List<ServerAddress> replicaSetSeeds = new ArrayList<ServerAddress>( uri.getHosts().size() );
@@ -293,7 +286,6 @@ public class Mongo {
             _addr = null;
             _addrs = replicaSetSeeds;
             _connector = new DBTCPConnector( this , replicaSetSeeds );
-            _connector.checkMaster( true , true );
         }
 
     }
@@ -315,7 +307,16 @@ public class Mongo {
             return temp;
         return db;
     }
-    
+
+    /**
+     * gets a collection of DBs used by the driver since this Mongo instance was created.
+     * This may include DBs that exist in the client but not yet on the server.
+     * @return
+     */
+    public Collection<DB> getUsedDatabases(){
+        return _dbs.values();
+    }
+
     /**
      * gets a list of all database names present on the server
      * @return
@@ -328,7 +329,7 @@ public class Mongo {
         cmd.put("listDatabases", 1);
         
 
-        BasicDBObject res = (BasicDBObject)getDB( "admin" ).command(cmd);
+        BasicDBObject res = (BasicDBObject)getDB( "admin" ).command(cmd, getOptions());
 
         if (res.getInt("ok" , 0 ) != 1 )
             throw new MongoException( "error listing databases : " + res );
@@ -388,7 +389,7 @@ public class Mongo {
     }
 
     /**
-     * Gets a list of all server addresses used in this Mongo
+     * Gets a list of all server addresses used when this Mongo was created
      * @return
      */
     public List<ServerAddress> getAllAddress() {
@@ -397,6 +398,15 @@ public class Mongo {
             return Arrays.asList(getAddress());
         }
         return result;
+    }
+
+    /**
+     * Gets the list of server addresses currently seen by the connector.
+     * This includes addresses auto-discovered from a replica set.
+     * @return
+     */
+    public List<ServerAddress> getServerAddressList() {
+        return _connector.getServerAddressList();
     }
 
     /**
@@ -465,14 +475,18 @@ public class Mongo {
     }
 
     /**
-     * Helper method for setting up MongOptions at instantiation
+     * Helper method for setting up MongoOptions at instantiation
      * so that any options which affect this connection can be set.
      */
     void _applyMongoOptions() {
         if (_options.slaveOk) slaveOk();
         setWriteConcern( _options.getWriteConcern() );
     }
-    
+
+    DBTCPConnector getConnector() {
+        return _connector;
+    }
+
     final ServerAddress _addr;
     final List<ServerAddress> _addrs;
     final MongoOptions _options;

@@ -51,9 +51,10 @@ import java.util.*;
  * </p>
  */
 public class BasicBSONList extends ArrayList<Object> implements BSONObject {
+
+    private static final long serialVersionUID = -4415279469780082174L;
     
-    public BasicBSONList(){
-    }
+    public BasicBSONList() { }
     
     /** 
      * Puts a value at an index.
@@ -81,6 +82,7 @@ public class BasicBSONList extends ArrayList<Object> implements BSONObject {
         return v;
     }
 
+    @SuppressWarnings("unchecked")
     public void putAll( Map m ){
     	for ( Map.Entry entry : (Set<Map.Entry>)m.entrySet() ){
             put( entry.getKey().toString() , entry.getValue() );
@@ -121,6 +123,7 @@ public class BasicBSONList extends ArrayList<Object> implements BSONObject {
     /**
      * @deprecated
      */
+    @Deprecated
     public boolean containsKey( String key ){
         return containsField(key);
     }
@@ -136,6 +139,7 @@ public class BasicBSONList extends ArrayList<Object> implements BSONObject {
       return new StringRangeSet(size());
     }
 
+    @SuppressWarnings("unchecked")
     public Map toMap() {
         Map m = new HashMap();
         Iterator i = this.keySet().iterator();

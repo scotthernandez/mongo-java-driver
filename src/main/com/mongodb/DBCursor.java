@@ -490,29 +490,21 @@ public class DBCursor implements Iterator<DBObject> , Iterable<DBObject> {
     /**
      * Checks if there is another object available
      * @return
+     * @throws MongoException
      */
-    public boolean hasNext(){
+    public boolean hasNext() throws MongoException {
         _checkType( CursorType.ITERATOR );
-        try {
-            return _hasNext();
-        }
-        catch ( MongoException e ){
-            throw new MongoInternalException( "couldn't get next element" , e );
-        }
+        return _hasNext();
     }
     
     /**
      * Returns the object the cursor is at and moves the cursor ahead by one.
      * @return the next element
+     * @throws MongoException
      */
-    public DBObject next(){
+    public DBObject next() throws MongoException {
         _checkType( CursorType.ITERATOR );
-        try {
-            return _next();
-        }
-        catch ( MongoException e ){
-            throw new MongoInternalException( "couldn't get next element" , e );
-        }
+        return _next();
     }
 
     /**
@@ -643,6 +635,30 @@ public class DBCursor implements Iterator<DBObject> , Iterable<DBObject> {
      */
     public DBObject getQuery(){
         return _query;
+    }
+
+    /**
+     * gets the collection
+     * @return
+     */
+    public DBCollection getCollection(){
+        return _collection;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Cursor id=").append(getCursorId());
+        sb.append(", ns=").append(getCollection().getFullName());
+        sb.append(", query=").append(getQuery());
+        if (getKeysWanted() != null)
+            sb.append(", fields=").append(getKeysWanted());
+        sb.append(", numIterated=").append(_num);
+        if (_numWanted > 0)
+            sb.append(", numWanted=").append(_numWanted);
+        if (_skip > 0)
+            sb.append(", skip=").append(_skip);
+        return sb.toString();
     }
 
     // ----  query setup ----

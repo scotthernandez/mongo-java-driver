@@ -38,6 +38,10 @@ public abstract class ReflectionDBObject implements DBObject {
         return getWrapper().keySet();
     }
 
+    /**
+     * @deprecated
+     */
+    @Deprecated
     public boolean containsKey( String s ){
         return containsField( s );
     }
@@ -50,6 +54,7 @@ public abstract class ReflectionDBObject implements DBObject {
         return getWrapper().set( this , key , v );
     }
 
+    @SuppressWarnings("unchecked")
     public void putAll( Map m ){
         for ( Map.Entry entry : (Set<Map.Entry>)m.entrySet() ){
             put( entry.getKey().toString() , entry.getValue() );
@@ -82,6 +87,7 @@ public abstract class ReflectionDBObject implements DBObject {
         return false;
     }
 
+    @SuppressWarnings("unchecked")
     public Map toMap() {
        Map m = new HashMap();
        Iterator i = this.keySet().iterator();
@@ -162,6 +168,10 @@ public abstract class ReflectionDBObject implements DBObject {
             return _keys;
         }
 
+        /**
+         * @deprecated
+         */
+        @Deprecated
         public boolean containsKey( String key ){
             return _keys.contains( key );
         }

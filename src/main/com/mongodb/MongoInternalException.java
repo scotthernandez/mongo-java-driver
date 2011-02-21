@@ -22,7 +22,9 @@ package com.mongodb;
  * An Mongo exception internal to the driver, not carrying any error code
  * @author antoine
  */
-public class MongoInternalException extends RuntimeException {
+public class MongoInternalException extends MongoException {
+
+    private static final long serialVersionUID = -4415279469780082174L;
 
     /**
      *
@@ -42,3 +44,4 @@ public class MongoInternalException extends RuntimeException {
     }
 
 }
+

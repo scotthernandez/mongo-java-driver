@@ -52,6 +52,7 @@ public class RawDBObject implements DBObject {
         return e.getObject();
     }
 
+    @SuppressWarnings("unchecked")
     public Map toMap() {
         Map m = new HashMap();
         Iterator i = this.keySet().iterator();
@@ -78,6 +79,10 @@ public class RawDBObject implements DBObject {
         throw new RuntimeException( "read only" );
     }
 
+    /**
+     * @deprecated
+     */
+    @Deprecated
     public boolean containsKey( String key ){
         return containsField(key);
     }
